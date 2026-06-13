@@ -1,0 +1,350 @@
+import SwiftUI
+import Combine
+
+// MARK: - WordleGame
+
+@MainActor
+final class WordleGame: ObservableObject {
+
+    // MARK: Board
+    @Published var tiles: [[String]]      = blank5x6Strings()
+    @Published var tileStates: [[TileState]] = blank5x6States()
+    @Published var letterStates: [Character: LetterState] = [:]
+
+    // MARK: Progress
+    @Published var currentRow: Int = 0
+    @Published var currentCol: Int = 0
+    @Published var gameState: GameState = .playing
+
+    // MARK: Animations
+    @Published var shakingRow: Int?      = nil
+    @Published var bouncingTile: (row: Int, col: Int)? = nil
+    @Published var revealingRow: Int?    = nil   // row currently mid-flip
+    @Published var revealDelays: [Double] = Array(repeating: 0, count: 5)
+    @Published var showConfetti: Bool    = false
+
+    // MARK: Toast
+    @Published var toastMessage: String? = nil
+
+    // MARK: Stats
+    @Published var statistics: Statistics = Statistics()
+
+    // MARK: Mode
+    @Published var isDaily: Bool = true
+    private(set) var secretWord: String = ""
+
+    // MARK: Settings (persisted)
+    @AppStorage("soundEnabled")    var soundEnabled: Bool = true
+    @AppStorage("highContrast")    var highContrast: Bool = false
+    @AppStorage("hardMode")        var hardMode: Bool    = false
+
+    // MARK: Private
+    private let validWords: Set<String>
+    private var toastTask: Task<Void, Never>?
+    private var dayNumber: Int = 0
+
+    static let referenceDate: Date = {
+        var c = DateComponents(); c.year = 2021; c.month = 6; c.day = 19
+        return Calendar.current.date(from: c)!
+    }()
+
+    // MARK: - Init
+
+    init() {
+        validWords = Set(WordList.allWords.map { $0.uppercased() })
+        loadStatistics()
+        newGame(daily: true)
+    }
+
+    // MARK: - Game Setup
+
+    func newGame(daily: Bool) {
+        isDaily = daily
+        if daily {
+            let today = Calendar.current.startOfDay(for: Date())
+            let days  = Calendar.current.dateComponents([.day], from: Self.referenceDate, to: today).day ?? 0
+            dayNumber  = days + 1
+            let idx    = ((days % WordList.answers.count) + WordList.answers.count) % WordList.answers.count
+            secretWord = WordList.answers[idx].uppercased()
+            if !attemptRestoreDailyGame() { resetBoard() }
+        } else {
+            secretWord = (WordList.answers.randomElement() ?? "CRANE").uppercased()
+            resetBoard()
+        }
+    }
+
+    private func resetBoard() {
+        tiles       = Self.blank5x6Strings()
+        tileStates  = Self.blank5x6States()
+        letterStates = [:]
+        currentRow  = 0
+        currentCol  = 0
+        gameState   = .playing
+        revealingRow = nil
+        showConfetti = false
+        toastMessage = nil
+    }
+
+    // MARK: - Input
+
+    func addLetter(_ letter: String) {
+        guard gameState == .playing,
+              currentCol < 5,
+              revealingRow == nil else { return }
+
+        let upper = letter.uppercased()
+        tiles[currentRow][currentCol]       = upper
+        tileStates[currentRow][currentCol]  = .filled
+        let col = currentCol
+        currentCol += 1
+
+        // Pop bounce animation
+        bouncingTile = (currentRow, col)
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            bouncingTile = nil
+        }
+    }
+
+    func deleteLetter() {
+        guard gameState == .playing,
+              currentCol > 0,
+              revealingRow == nil else { return }
+        currentCol -= 1
+        tiles[currentRow][currentCol]      = ""
+        tileStates[currentRow][currentCol] = .empty
+    }
+
+    func submitGuess() {
+        guard gameState == .playing,
+              currentCol == 5,
+              revealingRow == nil else { return }
+
+        let guess = tiles[currentRow].joined()
+
+        guard validWords.contains(guess) else {
+            toast("Not in word list")
+            triggerShake(row: currentRow)
+            return
+        }
+
+        let result = evaluate(guess: guess, against: secretWord)
+        let row    = currentRow
+
+        // Write final colors synchronously BEFORE starting the animation.
+        // TileView's flip task reads `state` at the midpoint; if we set the
+        // colors here first (all in one SwiftUI publish batch with revealingRow)
+        // the tile always sees the correct color — no async race condition.
+        for col in 0..<5 {
+            tileStates[row][col] = result[col]
+        }
+
+        // Start the staggered flip animation
+        revealDelays = (0..<5).map { Double($0) * 0.3 }
+        revealingRow = row
+
+        // After all flips complete
+        let doneDelay = revealDelays[4] + 0.3
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(doneDelay * 1_000_000_000))
+            self.revealingRow = nil
+            self.updateLetterStates(guess: guess, result: result)
+            self.handleGuessResult(guess: guess, result: result, row: row)
+        }
+    }
+
+    // MARK: - Evaluation
+
+    private func evaluate(guess: String, against secret: String) -> [TileState] {
+        var result        = [TileState](repeating: .absent, count: 5)
+        var secretChars   = Array(secret)
+        var guessChars    = Array(guess)
+
+        // Pass 1: correct positions
+        for i in 0..<5 where guessChars[i] == secretChars[i] {
+            result[i]       = .correct
+            secretChars[i]  = "★"
+            guessChars[i]   = "☆"
+        }
+        // Pass 2: present letters
+        for i in 0..<5 where guessChars[i] != "☆" {
+            if let j = secretChars.firstIndex(of: guessChars[i]) {
+                result[i]      = .present
+                secretChars[j] = "★"
+            }
+        }
+        return result
+    }
+
+    private func updateLetterStates(guess: String, result: [TileState]) {
+        let chars = Array(guess)
+        for i in 0..<5 {
+            let ch      = chars[i]
+            let incoming = result[i].asLetterState
+            let current  = letterStates[ch] ?? .unused
+            if incoming > current { letterStates[ch] = incoming }
+        }
+    }
+
+    private func handleGuessResult(guess: String, result: [TileState], row: Int) {
+        if guess == secretWord {
+            gameState    = .won
+            showConfetti = true
+            toast(WinMessage.message(forGuess: row + 1), duration: 3)
+            recordResult(won: true, guessCount: row + 1)
+            if isDaily { saveDailyGame() }
+        } else {
+            currentRow += 1
+            currentCol  = 0
+            if currentRow >= 6 {
+                gameState = .lost
+                toast(secretWord, duration: 8)
+                recordResult(won: false, guessCount: 6)
+            }
+            if isDaily { saveDailyGame() }
+        }
+    }
+
+    // MARK: - Animations
+
+    private func triggerShake(row: Int) {
+        shakingRow = row
+        Task {
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            shakingRow = nil
+        }
+    }
+
+    // MARK: - Toast
+
+    func toast(_ message: String, duration: Double = 1.8) {
+        toastTask?.cancel()
+        toastMessage = message
+        toastTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            toastMessage = nil
+        }
+    }
+
+    // MARK: - Share
+
+    var dayLabel: String { isDaily ? "Wordle \(dayNumber)" : "Wordle" }
+
+    func shareText() -> String {
+        let guessLabel = gameState == .won ? "\(currentRow)/6" : "X/6"
+        var text = "\(dayLabel) \(guessLabel)\n"
+        let rows = gameState == .won ? currentRow : 6
+        for r in 0..<rows {
+            text += "\n"
+            for c in 0..<5 {
+                switch tileStates[r][c] {
+                case .correct: text += highContrast ? "🟧" : "🟩"
+                case .present: text += highContrast ? "🟦" : "🟨"
+                default:       text += "⬛"
+                }
+            }
+        }
+        return text
+    }
+
+    // MARK: - Statistics
+
+    private func recordResult(won: Bool, guessCount: Int) {
+        statistics.gamesPlayed += 1
+        if won {
+            statistics.gamesWon     += 1
+            statistics.currentStreak += 1
+            statistics.maxStreak     = max(statistics.maxStreak, statistics.currentStreak)
+            let key = "\(guessCount)"
+            statistics.guessDistribution[key, default: 0] += 1
+        } else {
+            statistics.currentStreak = 0
+        }
+        saveStatistics()
+    }
+
+    // MARK: - Persistence
+
+    private let statsKey     = "wordle_statistics"
+    private let dailyKey     = "wordle_daily_state"
+    private let dailyDateKey = "wordle_daily_date"
+
+    private func loadStatistics() {
+        guard let data = UserDefaults.standard.data(forKey: statsKey),
+              let s    = try? JSONDecoder().decode(Statistics.self, from: data)
+        else { return }
+        statistics = s
+    }
+
+    private func saveStatistics() {
+        guard let data = try? JSONEncoder().encode(statistics) else { return }
+        UserDefaults.standard.set(data, forKey: statsKey)
+    }
+
+    private func saveDailyGame() {
+        let state = SavedGameState(
+            tiles:           tiles,
+            tileStates:      tileStates,
+            currentRow:      currentRow,
+            currentCol:      currentCol,
+            gameState:       gameState,
+            secretWord:      secretWord,
+            isDaily:         true,
+            letterStateRaw:  Dictionary(uniqueKeysWithValues:
+                letterStates.map { (String($0.key), $0.value.rawValue) }
+            )
+        )
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"
+        UserDefaults.standard.set(data, forKey: dailyKey)
+        UserDefaults.standard.set(formatter.string(from: Date()), forKey: dailyDateKey)
+    }
+
+    private func attemptRestoreDailyGame() -> Bool {
+        let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"
+        let todayStr  = formatter.string(from: Date())
+        guard
+            let savedDate = UserDefaults.standard.string(forKey: dailyDateKey),
+            savedDate == todayStr,
+            let data      = UserDefaults.standard.data(forKey: dailyKey),
+            let state     = try? JSONDecoder().decode(SavedGameState.self, from: data),
+            state.secretWord == secretWord
+        else { return false }
+
+        tiles        = state.tiles
+        tileStates   = state.tileStates
+        currentRow   = state.currentRow
+        currentCol   = state.currentCol
+        gameState    = state.gameState
+        letterStates = Dictionary(uniqueKeysWithValues:
+            state.letterStateRaw.compactMap { key, val -> (Character, LetterState)? in
+                guard let ch = key.first, let ls = LetterState(rawValue: val) else { return nil }
+                return (ch, ls)
+            }
+        )
+        return true
+    }
+
+    // MARK: - Helpers
+
+    private static func blank5x6Strings() -> [[String]] {
+        Array(repeating: Array(repeating: "", count: 5), count: 6)
+    }
+    private static func blank5x6States() -> [[TileState]] {
+        Array(repeating: Array(repeating: .empty, count: 5), count: 6)
+    }
+}
+
+// MARK: - TileState → LetterState conversion
+
+private extension TileState {
+    var asLetterState: LetterState {
+        switch self {
+        case .correct: return .correct
+        case .present: return .present
+        case .absent:  return .absent
+        default:       return .unused
+        }
+    }
+}
