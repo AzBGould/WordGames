@@ -29,9 +29,10 @@ final class WordleGame: ObservableObject {
     // MARK: Stats
     @Published var statistics: Statistics = Statistics()
 
-    // MARK: Mode
-    @Published var isDaily: Bool = true
+    // MARK: Word selection
+    @Published private(set) var puzzleNumber: Int = 0
     private(set) var secretWord: String = ""
+    private var usedAnswers: Set<String> = []   // answers already played; no repeats until exhausted
 
     // MARK: Settings (persisted)
     @AppStorage("soundEnabled")    var soundEnabled: Bool = true
@@ -47,12 +48,6 @@ final class WordleGame: ObservableObject {
     // MARK: Private
     private let validWords: Set<String>
     private var toastTask: Task<Void, Never>?
-    private var dayNumber: Int = 0
-
-    static let referenceDate: Date = {
-        var c = DateComponents(); c.year = 2021; c.month = 6; c.day = 19
-        return Calendar.current.date(from: c)!
-    }()
 
     // MARK: - Init
 
@@ -62,24 +57,35 @@ final class WordleGame: ObservableObject {
             darkTheme = saved
         }
         loadStatistics()
-        newGame(daily: true)
+        loadUsedAnswers()
+        puzzleNumber = UserDefaults.standard.integer(forKey: puzzleNumberKey)
+        if !attemptRestoreGame() { newGame() }
     }
 
     // MARK: - Game Setup
 
-    func newGame(daily: Bool) {
-        isDaily = daily
-        if daily {
-            let today = Calendar.current.startOfDay(for: Date())
-            let days  = Calendar.current.dateComponents([.day], from: Self.referenceDate, to: today).day ?? 0
-            dayNumber  = days + 1
-            let idx    = ((days % WordList.answers.count) + WordList.answers.count) % WordList.answers.count
-            secretWord = WordList.answers[idx].uppercased()
-            if !attemptRestoreDailyGame() { resetBoard() }
-        } else {
-            secretWord = (WordList.answers.randomElement() ?? "CRANE").uppercased()
-            resetBoard()
+    /// Starts a fresh puzzle with a random answer that hasn't been used yet.
+    func newGame() {
+        secretWord = pickNextAnswer()
+        puzzleNumber += 1
+        UserDefaults.standard.set(puzzleNumber, forKey: puzzleNumberKey)
+        resetBoard()
+        saveGame()
+    }
+
+    /// Picks a random answer not yet played. Once every answer has been used,
+    /// the pool reshuffles (used set clears) so play can continue indefinitely.
+    private func pickNextAnswer() -> String {
+        let all = WordList.answers.map { $0.uppercased() }
+        var remaining = all.filter { !usedAnswers.contains($0) }
+        if remaining.isEmpty {
+            usedAnswers.removeAll()
+            remaining = all
         }
+        let word = remaining.randomElement() ?? "CRANE"
+        usedAnswers.insert(word)
+        saveUsedAnswers()
+        return word
     }
 
     private func resetBoard() {
@@ -269,7 +275,7 @@ final class WordleGame: ObservableObject {
             toast(WinMessage.message(forGuess: row + 1), duration: 3)
             recordResult(won: true, guessCount: row + 1)
             if soundEnabled { SoundManager.shared.win() }
-            if isDaily { saveDailyGame() }
+            saveGame()
         } else {
             currentRow += 1
             currentCol  = 0
@@ -279,7 +285,7 @@ final class WordleGame: ObservableObject {
                 recordResult(won: false, guessCount: 6)
                 if soundEnabled { SoundManager.shared.lose() }
             }
-            if isDaily { saveDailyGame() }
+            saveGame()
         }
     }
 
@@ -307,7 +313,7 @@ final class WordleGame: ObservableObject {
 
     // MARK: - Share
 
-    var dayLabel: String { isDaily ? "Wordle \(dayNumber)" : "Wordle" }
+    var dayLabel: String { "LetterLogic \(puzzleNumber)" }
 
     /// Number of guesses used. On a win, `currentRow` stays on the winning
     /// row index (0-based), so guesses used is `currentRow + 1`. On a loss the
@@ -351,9 +357,10 @@ final class WordleGame: ObservableObject {
 
     // MARK: - Persistence
 
-    private let statsKey     = "wordle_statistics"
-    private let dailyKey     = "wordle_daily_state"
-    private let dailyDateKey = "wordle_daily_date"
+    private let statsKey        = "wordle_statistics"
+    private let savedGameKey    = "ll_saved_game"
+    private let usedAnswersKey  = "ll_used_answers"
+    private let puzzleNumberKey = "ll_puzzle_number"
 
     private func loadStatistics() {
         guard let data = UserDefaults.standard.data(forKey: statsKey),
@@ -367,7 +374,7 @@ final class WordleGame: ObservableObject {
         UserDefaults.standard.set(data, forKey: statsKey)
     }
 
-    private func saveDailyGame() {
+    private func saveGame() {
         let state = SavedGameState(
             tiles:           tiles,
             tileStates:      tileStates,
@@ -375,28 +382,23 @@ final class WordleGame: ObservableObject {
             currentCol:      currentCol,
             gameState:       gameState,
             secretWord:      secretWord,
-            isDaily:         true,
+            isDaily:         false,
             letterStateRaw:  Dictionary(uniqueKeysWithValues:
                 letterStates.map { (String($0.key), $0.value.rawValue) }
             )
         )
         guard let data = try? JSONEncoder().encode(state) else { return }
-        let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"
-        UserDefaults.standard.set(data, forKey: dailyKey)
-        UserDefaults.standard.set(formatter.string(from: Date()), forKey: dailyDateKey)
+        UserDefaults.standard.set(data, forKey: savedGameKey)
     }
 
-    private func attemptRestoreDailyGame() -> Bool {
-        let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"
-        let todayStr  = formatter.string(from: Date())
+    /// Restores the last saved game (in-progress or finished), if any.
+    private func attemptRestoreGame() -> Bool {
         guard
-            let savedDate = UserDefaults.standard.string(forKey: dailyDateKey),
-            savedDate == todayStr,
-            let data      = UserDefaults.standard.data(forKey: dailyKey),
-            let state     = try? JSONDecoder().decode(SavedGameState.self, from: data),
-            state.secretWord == secretWord
+            let data  = UserDefaults.standard.data(forKey: savedGameKey),
+            let state = try? JSONDecoder().decode(SavedGameState.self, from: data)
         else { return false }
 
+        secretWord   = state.secretWord
         tiles        = state.tiles
         tileStates   = state.tileStates
         currentRow   = state.currentRow
@@ -409,6 +411,16 @@ final class WordleGame: ObservableObject {
             }
         )
         return true
+    }
+
+    private func saveUsedAnswers() {
+        UserDefaults.standard.set(Array(usedAnswers), forKey: usedAnswersKey)
+    }
+
+    private func loadUsedAnswers() {
+        if let arr = UserDefaults.standard.array(forKey: usedAnswersKey) as? [String] {
+            usedAnswers = Set(arr)
+        }
     }
 
     // MARK: - Helpers

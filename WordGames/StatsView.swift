@@ -81,7 +81,7 @@ struct StatsView: View {
 
                     Button {
                         isPresented = false
-                        game.newGame(daily: false)
+                        game.newGame()
                     } label: {
                         Text("NEW GAME")
                             .font(.system(size: 16, weight: .bold))
