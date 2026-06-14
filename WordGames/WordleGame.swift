@@ -38,6 +38,12 @@ final class WordleGame: ObservableObject {
     @AppStorage("highContrast")    var highContrast: Bool = false
     @AppStorage("hardMode")        var hardMode: Bool    = false
 
+    // Theme is @Published (not @AppStorage) so views re-render live when it
+    // flips; persistence is handled manually in didSet / init.
+    @Published var darkTheme: Bool = true {
+        didSet { UserDefaults.standard.set(darkTheme, forKey: "darkTheme") }
+    }
+
     // MARK: Private
     private let validWords: Set<String>
     private var toastTask: Task<Void, Never>?
@@ -52,6 +58,9 @@ final class WordleGame: ObservableObject {
 
     init() {
         validWords = Set(WordList.allWords.map { $0.uppercased() })
+        if let saved = UserDefaults.standard.object(forKey: "darkTheme") as? Bool {
+            darkTheme = saved
+        }
         loadStatistics()
         newGame(daily: true)
     }

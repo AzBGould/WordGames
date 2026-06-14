@@ -8,6 +8,7 @@ struct TileView: View {
     let isRevealing: Bool   // true when this tile's row is mid-flip
     let revealDelay: Double // stagger delay within the row
     let highContrast: Bool
+    let dark: Bool
 
     @State private var displayState: TileState = .empty
     @State private var scaleY: CGFloat = 1.0
@@ -21,12 +22,12 @@ struct TileView: View {
                     .fill(displayState.backgroundColor(highContrast: highContrast))
 
                 RoundedRectangle(cornerRadius: 2)
-                    .strokeBorder(displayState.borderColor(highContrast: highContrast), lineWidth: 2)
+                    .strokeBorder(displayState.borderColor(dark: dark, highContrast: highContrast), lineWidth: 2)
 
                 if !letter.isEmpty {
                     Text(letter)
                         .font(.system(size: size * 0.52, weight: .bold, design: .default))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(displayState.textColor(dark: dark))
                         .minimumScaleFactor(0.5)
                         .accessibilityLabel(letter)
                 }
@@ -99,6 +100,7 @@ struct BoardRowView: View {
     let isRevealing: Bool
     let revealDelays: [Double]
     let highContrast: Bool
+    let dark: Bool
 
     @State private var shakeValue: CGFloat = 0
 
@@ -110,7 +112,8 @@ struct BoardRowView: View {
                     state:       states[col],
                     isRevealing: isRevealing,
                     revealDelay: isRevealing ? revealDelays[col] : 0,
-                    highContrast: highContrast
+                    highContrast: highContrast,
+                    dark:        dark
                 )
             }
         }
@@ -142,7 +145,8 @@ struct BoardView: View {
                     isShaking:    game.shakingRow == row,
                     isRevealing:  game.revealingRow == row,
                     revealDelays: game.revealDelays,
-                    highContrast: game.highContrast
+                    highContrast: game.highContrast,
+                    dark:         game.darkTheme
                 )
             }
         }

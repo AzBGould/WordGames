@@ -14,12 +14,17 @@ struct KeyButton: View {
     let label: String
     let letterState: LetterState
     let highContrast: Bool
+    let dark: Bool
     let action: () -> Void
 
     private var isWide: Bool { label == "ENTER" || label == "⌫" }
 
     private var background: Color {
-        letterState.keyColor(highContrast: highContrast)
+        letterState.keyColor(dark: dark, highContrast: highContrast)
+    }
+
+    private var foreground: Color {
+        letterState.keyTextColor(dark: dark)
     }
 
     var body: some View {
@@ -31,11 +36,11 @@ struct KeyButton: View {
                 if label == "⌫" {
                     Image(systemName: "delete.backward")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(foreground)
                 } else {
                     Text(label)
                         .font(.system(size: label.count > 1 ? 12 : 14, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(foreground)
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                 }
@@ -67,7 +72,8 @@ struct KeyboardView: View {
                         KeyButton(
                             label:        key,
                             letterState:  state(for: key),
-                            highContrast: game.highContrast
+                            highContrast: game.highContrast,
+                            dark:         game.darkTheme
                         ) {
                             handleKey(key)
                         }

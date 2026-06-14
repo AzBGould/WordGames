@@ -9,14 +9,14 @@ struct GameView: View {
 
     var body: some View {
         ZStack {
-            Color.wordleBackground.ignoresSafeArea()
+            AppTheme.background(dark: game.darkTheme).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // ── Header ──────────────────────────────────────────
                 headerView
                     .frame(height: 50)
 
-                Divider().background(Color.wordleHeaderLine)
+                Divider().background(AppTheme.divider(dark: game.darkTheme))
 
                 // Mode pill (random game indicator)
                 if !game.isDaily {
@@ -39,7 +39,7 @@ struct GameView: View {
 
             // ── Toast ─────────────────────────────────────────────
             if let msg = game.toastMessage {
-                ToastView(message: msg)
+                ToastView(message: msg, dark: game.darkTheme)
                     .transition(.opacity.combined(with: .scale))
                     .zIndex(10)
             }
@@ -61,7 +61,7 @@ struct GameView: View {
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
             }
             .padding(.leading, 16)
 
@@ -69,7 +69,7 @@ struct GameView: View {
 
             Text("WORDLE")
                 .font(.system(size: 32, weight: .heavy, design: .serif))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
                 .kerning(2)
 
             Spacer()
@@ -77,7 +77,7 @@ struct GameView: View {
             Button { showStats = true } label: {
                 Image(systemName: "chart.bar")
                     .font(.system(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
             }
             .padding(.trailing, 16)
         }
@@ -88,10 +88,10 @@ struct GameView: View {
     private var modePill: some View {
         Text("PRACTICE MODE")
             .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(Color(hex: "3A3A3C"))
+            .background(AppTheme.modePillBg(dark: game.darkTheme))
             .clipShape(Capsule())
             .padding(.vertical, 4)
     }
@@ -117,14 +117,15 @@ struct GameView: View {
 
 struct ToastView: View {
     let message: String
+    let dark: Bool
 
     var body: some View {
         Text(message.uppercased())
             .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(Color.wordleBackground)
+            .foregroundStyle(AppTheme.toastText(dark: dark))
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(Color.white)
+            .background(AppTheme.toastBg(dark: dark))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

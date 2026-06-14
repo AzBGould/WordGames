@@ -11,7 +11,7 @@ struct ContentView: View {
             showStats:    $showStats,
             showSettings: $showSettings
         )
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(game.darkTheme ? .dark : .light)
         .sheet(isPresented: $showStats) {
             StatsView(game: game, isPresented: $showStats)
                 .presentationDetents([.medium, .large])
