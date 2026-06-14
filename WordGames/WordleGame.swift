@@ -98,6 +98,8 @@ final class WordleGame: ObservableObject {
         let col = currentCol
         currentCol += 1
 
+        if soundEnabled { SoundManager.shared.keyTap() }
+
         // Pop bounce animation
         bouncingTile = (currentRow, col)
         Task {
@@ -113,6 +115,8 @@ final class WordleGame: ObservableObject {
         currentCol -= 1
         tiles[currentRow][currentCol]      = ""
         tileStates[currentRow][currentCol] = .empty
+
+        if soundEnabled { SoundManager.shared.keyDelete() }
     }
 
     func submitGuess() {
@@ -125,6 +129,14 @@ final class WordleGame: ObservableObject {
         guard validWords.contains(guess) else {
             toast("Not in word list")
             triggerShake(row: currentRow)
+            if soundEnabled { SoundManager.shared.invalid() }
+            return
+        }
+
+        if let violation = hardModeViolation(for: guess) {
+            toast(violation)
+            triggerShake(row: currentRow)
+            if soundEnabled { SoundManager.shared.invalid() }
             return
         }
 
@@ -143,6 +155,17 @@ final class WordleGame: ObservableObject {
         revealDelays = (0..<5).map { Double($0) * 0.3 }
         revealingRow = row
 
+        // Staggered per-tile feedback, fired at each flip's midpoint.
+        if soundEnabled {
+            for col in 0..<5 {
+                let fireDelay = revealDelays[col] + 0.15
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: UInt64(fireDelay * 1_000_000_000))
+                    SoundManager.shared.reveal(result[col])
+                }
+            }
+        }
+
         // After all flips complete
         let doneDelay = revealDelays[4] + 0.3
         Task { @MainActor in
@@ -150,6 +173,50 @@ final class WordleGame: ObservableObject {
             self.revealingRow = nil
             self.updateLetterStates(guess: guess, result: result)
             self.handleGuessResult(guess: guess, result: result, row: row)
+        }
+    }
+
+    // MARK: - Hard Mode
+
+    /// Returns an error message if `guess` violates Hard Mode rules, else nil.
+    /// Rule: revealed greens must stay in position; revealed yellows must be reused.
+    private func hardModeViolation(for guess: String) -> String? {
+        guard hardMode, currentRow > 0 else { return nil }
+
+        let guessChars = Array(guess)
+        var greens: [Int: Character] = [:]      // position -> required letter
+        var requiredPresent: Set<Character> = []
+
+        for r in 0..<currentRow {
+            let rowChars = Array(tiles[r].joined())
+            for c in 0..<5 {
+                switch tileStates[r][c] {
+                case .correct: greens[c] = rowChars[c]
+                case .present: requiredPresent.insert(rowChars[c])
+                default:       break
+                }
+            }
+        }
+
+        // Greens must occupy the same position.
+        for c in 0..<5 {
+            if let req = greens[c], guessChars[c] != req {
+                return "\(Self.ordinal(c + 1)) letter must be \(req)"
+            }
+        }
+        // Yellows must appear somewhere in the guess.
+        for ch in requiredPresent.sorted() where !guessChars.contains(ch) {
+            return "Guess must contain \(ch)"
+        }
+        return nil
+    }
+
+    private static func ordinal(_ n: Int) -> String {
+        switch n {
+        case 1:  return "1st"
+        case 2:  return "2nd"
+        case 3:  return "3rd"
+        default: return "\(n)th"
         }
     }
 
@@ -192,6 +259,7 @@ final class WordleGame: ObservableObject {
             showConfetti = true
             toast(WinMessage.message(forGuess: row + 1), duration: 3)
             recordResult(won: true, guessCount: row + 1)
+            if soundEnabled { SoundManager.shared.win() }
             if isDaily { saveDailyGame() }
         } else {
             currentRow += 1
@@ -200,6 +268,7 @@ final class WordleGame: ObservableObject {
                 gameState = .lost
                 toast(secretWord, duration: 8)
                 recordResult(won: false, guessCount: 6)
+                if soundEnabled { SoundManager.shared.lose() }
             }
             if isDaily { saveDailyGame() }
         }
@@ -231,10 +300,17 @@ final class WordleGame: ObservableObject {
 
     var dayLabel: String { isDaily ? "Wordle \(dayNumber)" : "Wordle" }
 
+    /// Number of guesses used. On a win, `currentRow` stays on the winning
+    /// row index (0-based), so guesses used is `currentRow + 1`. On a loss the
+    /// board is full, so 6.
+    var guessesUsed: Int {
+        gameState == .won ? currentRow + 1 : 6
+    }
+
     func shareText() -> String {
-        let guessLabel = gameState == .won ? "\(currentRow)/6" : "X/6"
+        let guessLabel = gameState == .won ? "\(guessesUsed)/6" : "X/6"
         var text = "\(dayLabel) \(guessLabel)\n"
-        let rows = gameState == .won ? currentRow : 6
+        let rows = guessesUsed
         for r in 0..<rows {
             text += "\n"
             for c in 0..<5 {
