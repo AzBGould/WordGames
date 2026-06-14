@@ -4,9 +4,11 @@ struct StatsView: View {
     @ObservedObject var game: WordleGame
     @Binding var isPresented: Bool
 
+    private var dark: Bool { game.darkTheme }
+
     var body: some View {
         ZStack {
-            Color.wordleBackground.ignoresSafeArea()
+            AppTheme.background(dark: dark).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header
@@ -14,11 +16,11 @@ struct StatsView: View {
                     Spacer()
                     Text("STATISTICS")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.primaryText(dark: dark))
                     Spacer()
                     Button { isPresented = false } label: {
                         Image(systemName: "xmark")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.primaryText(dark: dark))
                             .font(.system(size: 18))
                     }
                     .padding(.trailing, 20)
@@ -26,24 +28,24 @@ struct StatsView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 16)
 
-                Divider().background(Color.wordleHeaderLine)
+                Divider().background(AppTheme.divider(dark: dark))
 
                 // Summary numbers
                 HStack(spacing: 20) {
-                    StatNumber(value: game.statistics.gamesPlayed,  label: "Played")
-                    StatNumber(value: game.statistics.winPercentage, label: "Win %")
-                    StatNumber(value: game.statistics.currentStreak, label: "Current\nStreak")
-                    StatNumber(value: game.statistics.maxStreak,     label: "Max\nStreak")
+                    StatNumber(value: game.statistics.gamesPlayed,  label: "Played",        dark: dark)
+                    StatNumber(value: game.statistics.winPercentage, label: "Win %",         dark: dark)
+                    StatNumber(value: game.statistics.currentStreak, label: "Current\nStreak", dark: dark)
+                    StatNumber(value: game.statistics.maxStreak,     label: "Max\nStreak",    dark: dark)
                 }
                 .padding(.vertical, 20)
 
-                Divider().background(Color.wordleHeaderLine)
+                Divider().background(AppTheme.divider(dark: dark))
 
                 // Guess distribution
                 VStack(spacing: 8) {
                     Text("GUESS DISTRIBUTION")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.primaryText(dark: dark))
                         .padding(.top, 12)
 
                     let maxVal = maxDistribution()
@@ -53,14 +55,15 @@ struct StatsView: View {
                                 number:    n,
                                 count:     game.statistics.guessDistribution["\(n)"] ?? 0,
                                 maxCount:  maxVal,
-                                highlight: game.gameState == .won && game.guessesUsed == n
+                                highlight: game.gameState == .won && game.guessesUsed == n,
+                                dark:      dark
                             )
                         }
                     }
                     .padding(.horizontal, 20)
                 }
 
-                Divider().background(Color.wordleHeaderLine).padding(.top, 12)
+                Divider().background(AppTheme.divider(dark: dark)).padding(.top, 12)
 
                 // Buttons row
                 HStack(spacing: 12) {
@@ -85,7 +88,7 @@ struct StatsView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 14)
-                            .background(Color(hex: "3A3A3C"))
+                            .background(AppTheme.grayFill(dark: dark))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
@@ -106,15 +109,16 @@ struct StatsView: View {
 private struct StatNumber: View {
     let value: Int
     let label: String
+    let dark: Bool
 
     var body: some View {
         VStack(spacing: 4) {
             Text("\(value)")
                 .font(.system(size: 36, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.primaryText(dark: dark))
             Text(label)
                 .font(.system(size: 11))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.primaryText(dark: dark))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -126,12 +130,13 @@ private struct DistributionBar: View {
     let count: Int
     let maxCount: Int
     let highlight: Bool
+    let dark: Bool
 
     var body: some View {
         HStack(spacing: 4) {
             Text("\(number)")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.primaryText(dark: dark))
                 .frame(width: 14, alignment: .leading)
 
             GeometryReader { geo in
@@ -140,7 +145,7 @@ private struct DistributionBar: View {
                 HStack {
                     ZStack(alignment: .trailing) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(highlight ? Color.wordleGreen : Color(hex: "3A3A3C"))
+                            .fill(highlight ? Color.wordleGreen : AppTheme.grayFill(dark: dark))
                             .frame(width: barWidth)
                         Text("\(count)")
                             .font(.system(size: 13, weight: .bold))

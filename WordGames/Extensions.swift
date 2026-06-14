@@ -38,6 +38,49 @@ extension Color {
     static let wordleHighYellow = Color(hex: "85C0F9")  // high-contrast present
 }
 
+// MARK: - App Theme (light / dark palette)
+// Tile fill colors (green/yellow/gray) are the same in both themes; what
+// changes is the chrome: background, text, borders, dividers, key colors.
+
+enum AppTheme {
+    static func background(dark: Bool) -> Color {
+        dark ? Color(hex: "121213") : .white
+    }
+    static func primaryText(dark: Bool) -> Color {
+        dark ? .white : Color(hex: "1A1A1B")
+    }
+    static func secondaryText(dark: Bool) -> Color {
+        Color(hex: "787C7E")  // readable on both themes
+    }
+    static func divider(dark: Bool) -> Color {
+        dark ? Color(hex: "3A3A3C") : Color(hex: "D3D6DA")
+    }
+    static func emptyBorder(dark: Bool) -> Color {
+        dark ? Color(hex: "3A3A3C") : Color(hex: "D3D6DA")
+    }
+    static func filledBorder(dark: Bool) -> Color {
+        dark ? Color(hex: "565758") : Color(hex: "878A8C")
+    }
+    static func keyDefaultBg(dark: Bool) -> Color {
+        dark ? Color(hex: "818384") : Color(hex: "D3D6DA")
+    }
+    /// Gray fill for distribution bars and the secondary "New Game" button
+    /// (always shows white text on top, so it stays a medium gray).
+    static func grayFill(dark: Bool) -> Color {
+        dark ? Color(hex: "3A3A3C") : Color(hex: "787C7E")
+    }
+    static func modePillBg(dark: Bool) -> Color {
+        dark ? Color(hex: "3A3A3C") : Color(hex: "D3D6DA")
+    }
+    /// Toast inverts the background for contrast.
+    static func toastBg(dark: Bool) -> Color {
+        dark ? .white : Color(hex: "121213")
+    }
+    static func toastText(dark: Bool) -> Color {
+        dark ? Color(hex: "121213") : .white
+    }
+}
+
 // MARK: - TileState → Colors
 
 extension TileState {
@@ -50,13 +93,22 @@ extension TileState {
         }
     }
 
-    func borderColor(highContrast: Bool) -> Color {
+    func borderColor(dark: Bool, highContrast: Bool) -> Color {
         switch self {
-        case .empty:  return .wordleTileBorder
-        case .filled: return .wordleTileFilled
+        case .empty:  return AppTheme.emptyBorder(dark: dark)
+        case .filled: return AppTheme.filledBorder(dark: dark)
         case .correct: return highContrast ? .wordleHighGreen  : .wordleGreen
         case .present: return highContrast ? .wordleHighYellow : .wordleYellow
         case .absent:  return .wordleGray
+        }
+    }
+
+    /// Letter color: dark/near-black on blank or filled tiles, white once a
+    /// tile is colored in (green/yellow/gray look the same in both themes).
+    func textColor(dark: Bool) -> Color {
+        switch self {
+        case .empty, .filled: return AppTheme.primaryText(dark: dark)
+        case .correct, .present, .absent: return .white
         }
     }
 }
@@ -64,12 +116,20 @@ extension TileState {
 // MARK: - LetterState → Key Color
 
 extension LetterState {
-    func keyColor(highContrast: Bool) -> Color {
+    func keyColor(dark: Bool, highContrast: Bool) -> Color {
         switch self {
-        case .unused:  return .wordleKeyBg
-        case .absent:  return .wordleDarkGray
+        case .unused:  return AppTheme.keyDefaultBg(dark: dark)
+        case .absent:  return dark ? .wordleDarkGray : .wordleGray
         case .present: return highContrast ? .wordleHighYellow : .wordleYellow
         case .correct: return highContrast ? .wordleHighGreen  : .wordleGreen
+        }
+    }
+
+    /// Key label color: dark text on an unused light key, white otherwise.
+    func keyTextColor(dark: Bool) -> Color {
+        switch self {
+        case .unused: return AppTheme.primaryText(dark: dark)
+        default:      return .white
         }
     }
 }
