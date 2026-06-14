@@ -82,7 +82,7 @@ struct SettingsView: View {
                 Spacer()
 
                 // Version footer
-                Text("Wordle Clone • Made with SwiftUI")
+                Text("LetterLogic • Made with SwiftUI")
                     .font(.system(size: 12))
                     .foregroundStyle(AppTheme.secondaryText(dark: dark))
                     .padding(.bottom, 30)

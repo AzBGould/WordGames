@@ -18,11 +18,6 @@ struct GameView: View {
 
                 Divider().background(AppTheme.divider(dark: game.darkTheme))
 
-                // Mode pill (random game indicator)
-                if !game.isDaily {
-                    modePill
-                }
-
                 // ── Board ────────────────────────────────────────────
                 GeometryReader { geo in
                     let boardSize = min(geo.size.width - 8, geo.size.height - 10)
@@ -67,10 +62,12 @@ struct GameView: View {
 
             Spacer()
 
-            Text("WORDLE")
-                .font(.system(size: 32, weight: .heavy, design: .serif))
+            Text("LETTERLOGIC")
+                .font(.system(size: 26, weight: .heavy, design: .serif))
                 .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
-                .kerning(2)
+                .kerning(1)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
 
             Spacer()
 
@@ -81,19 +78,6 @@ struct GameView: View {
             }
             .padding(.trailing, 16)
         }
-    }
-
-    // MARK: - Mode Pill
-
-    private var modePill: some View {
-        Text("PRACTICE MODE")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(AppTheme.primaryText(dark: game.darkTheme))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(AppTheme.modePillBg(dark: game.darkTheme))
-            .clipShape(Capsule())
-            .padding(.vertical, 4)
     }
 
     // MARK: - Hardware Keyboard Support
