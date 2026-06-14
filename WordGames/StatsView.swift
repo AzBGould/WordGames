@@ -53,7 +53,7 @@ struct StatsView: View {
                                 number:    n,
                                 count:     game.statistics.guessDistribution["\(n)"] ?? 0,
                                 maxCount:  maxVal,
-                                highlight: game.gameState == .won && game.currentRow == n
+                                highlight: game.gameState == .won && game.guessesUsed == n
                             )
                         }
                     }
