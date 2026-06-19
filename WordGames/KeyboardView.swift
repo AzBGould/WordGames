@@ -15,9 +15,9 @@ struct KeyButton: View {
     let letterState: LetterState
     let palette: TilePalette
     let dark: Bool
+    let width: CGFloat
+    let height: CGFloat
     let action: () -> Void
-
-    private var isWide: Bool { label == "ENTER" || label == "⌫" }
 
     private var background: Color {
         letterState.keyColor(dark: dark, palette: palette)
@@ -46,16 +46,8 @@ struct KeyButton: View {
                 }
             }
         }
-        .frame(width: keyWidth(label), height: 58)
+        .frame(width: width, height: height)
         .accessibilityLabel(label == "⌫" ? "Backspace" : label)
-    }
-
-    private func keyWidth(_ label: String) -> CGFloat {
-        switch label {
-        case "ENTER": return 65
-        case "⌫":    return 44
-        default:      return 34
-        }
     }
 }
 
@@ -64,24 +56,51 @@ struct KeyButton: View {
 struct KeyboardView: View {
     @ObservedObject var game: LetterLogicGame
 
+    // Layout constants. Widths are computed from the available width so the
+    // keyboard fits every device down to the narrowest iOS 16 phones (~360pt)
+    // without clipping; wide keys (ENTER, ⌫) are 1.5× a letter key.
+    private let keySpacing: CGFloat   = 6
+    private let rowSpacing: CGFloat   = 8
+    private let sidePadding: CGFloat  = 6
+    private let keyHeight: CGFloat    = 58
+    private let topRowKeyCount        = 10   // the widest row sets the unit size
+    private let wideKeyFactor: CGFloat = 1.5
+
     var body: some View {
-        VStack(spacing: 8) {
-            ForEach(keyRows.indices, id: \.self) { rowIdx in
-                HStack(spacing: 6) {
-                    ForEach(keyRows[rowIdx], id: \.self) { key in
-                        KeyButton(
-                            label:        key,
-                            letterState:  state(for: key),
-                            palette:      game.palette,
-                            dark:         game.darkTheme
-                        ) {
-                            handleKey(key)
+        GeometryReader { geo in
+            // Unit (letter-key) width is set by the 10-key top row; every other
+            // row uses the same unit and therefore fits comfortably.
+            let available = geo.size.width - sidePadding * 2
+            let unit = max(0, (available - keySpacing * CGFloat(topRowKeyCount - 1))
+                              / CGFloat(topRowKeyCount))
+
+            VStack(spacing: rowSpacing) {
+                ForEach(keyRows.indices, id: \.self) { rowIdx in
+                    HStack(spacing: keySpacing) {
+                        ForEach(keyRows[rowIdx], id: \.self) { key in
+                            KeyButton(
+                                label:       key,
+                                letterState: state(for: key),
+                                palette:     game.palette,
+                                dark:        game.darkTheme,
+                                width:       keyWidth(for: key, unit: unit),
+                                height:      keyHeight
+                            ) {
+                                handleKey(key)
+                            }
                         }
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, sidePadding)
         }
-        .padding(.horizontal, 6)
+        .frame(height: keyHeight * 3 + rowSpacing * 2)
+    }
+
+    /// Letter keys are one unit; ENTER and ⌫ are 1.5 units.
+    private func keyWidth(for key: String, unit: CGFloat) -> CGFloat {
+        (key == "ENTER" || key == "⌫") ? unit * wideKeyFactor : unit
     }
 
     // MARK: - Key state

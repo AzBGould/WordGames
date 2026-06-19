@@ -22,7 +22,7 @@ struct ContentView: View {
             SettingsView(game: game, isPresented: $showSettings)
         }
         // Auto-show stats when a game ends (small delay so flip finishes)
-        .onChange(of: game.gameState) { _, state in
+        .onValueChange(of: game.gameState) { state in
             if state != .playing {
                 Task {
                     try? await Task.sleep(nanoseconds: 2_000_000_000)

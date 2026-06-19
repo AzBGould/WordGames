@@ -1,5 +1,24 @@
 import SwiftUI
 
+// MARK: - Backwards-compatible onChange
+// `onChange(of:_:)` with a two-parameter closure is iOS 17+. This wrapper uses
+// it when available and falls back to the pre-iOS 17 single-value API, so the
+// app builds and behaves identically down to the iOS 16 deployment target.
+
+extension View {
+    @ViewBuilder
+    func onValueChange<V: Equatable>(
+        of value: V,
+        perform action: @escaping (V) -> Void
+    ) -> some View {
+        if #available(iOS 17.0, *) {
+            self.onChange(of: value) { _, newValue in action(newValue) }
+        } else {
+            self.onChange(of: value) { newValue in action(newValue) }
+        }
+    }
+}
+
 // MARK: - Hex Color initializer
 
 extension Color {

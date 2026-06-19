@@ -37,13 +37,13 @@ struct TileView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         // Animate flip when row is being revealed
-        .onChange(of: isRevealing) { _, revealing in
+        .onValueChange(of: isRevealing) { revealing in
             if revealing {
                 animateFlip()
             }
         }
         // Bounce-in when letter is added
-        .onChange(of: letter) { old, new in
+        .onValueChange(of: letter) { new in
             if !new.isEmpty && state == .filled {
                 animatePop()
             } else if new.isEmpty {
@@ -119,7 +119,7 @@ struct BoardRowView: View {
             }
         }
         .modifier(ShakeEffect(animatableData: shakeValue))
-        .onChange(of: isShaking) { _, shaking in
+        .onValueChange(of: isShaking) { shaking in
             if shaking {
                 withAnimation(.default) { shakeValue = 1 }
                 Task {

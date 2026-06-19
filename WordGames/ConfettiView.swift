@@ -41,7 +41,7 @@ struct ConfettiView: View {
             .ignoresSafeArea()
             .allowsHitTesting(false)
             // Launch when a win sets the flag; the structured task below tears down.
-            .onChange(of: isActive) { _, active in
+            .onValueChange(of: isActive) { active in
                 if active { launch(in: geo.size) }
             }
             // One structured task per burst handles teardown — no run-loop timer.

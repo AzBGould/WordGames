@@ -44,9 +44,8 @@ struct GameView: View {
                 .allowsHitTesting(false)
                 .zIndex(5)
         }
-        .onKeyPress(phases: .down) { press in
-            handleHardwareKey(press)
-        }
+        // Hardware-keyboard support (iOS 17+); the on-screen keyboard works on all versions.
+        .modifier(HardwareKeyboardSupport(game: game))
     }
 
     // MARK: - Header
@@ -80,20 +79,35 @@ struct GameView: View {
         }
     }
 
-    // MARK: - Hardware Keyboard Support
+}
 
-    private func handleHardwareKey(_ press: KeyPress) -> KeyPress.Result {
-        let char = press.characters.uppercased()
-        if press.key == .return {
-            game.submitGuess(); return .handled
+// MARK: - Hardware Keyboard Support
+// `onKeyPress` / `KeyPress` are iOS 17+. This modifier applies them only when
+// available, so on iOS 16 the view compiles and runs unchanged (players use the
+// on-screen keyboard). All references to the iOS 17 types stay inside the
+// availability check.
+
+private struct HardwareKeyboardSupport: ViewModifier {
+    @ObservedObject var game: LetterLogicGame
+
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.onKeyPress(phases: .down) { press in
+                let char = press.characters.uppercased()
+                if press.key == .return {
+                    game.submitGuess(); return .handled
+                }
+                if press.key == .delete {
+                    game.deleteLetter(); return .handled
+                }
+                if char.count == 1, let c = char.first, c.isLetter {
+                    game.addLetter(char); return .handled
+                }
+                return .ignored
+            }
+        } else {
+            content
         }
-        if press.key == .delete {
-            game.deleteLetter(); return .handled
-        }
-        if char.count == 1, let c = char.first, c.isLetter {
-            game.addLetter(char); return .handled
-        }
-        return .ignored
     }
 }
 

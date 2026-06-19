@@ -174,9 +174,9 @@ final class LetterLogicGame: ObservableObject {
             tileStates[row][col] = result[col]
         }
 
-        // Start the staggered flip animation. Delays run right-to-left, so the
-        // rightmost tile flips first and the reveal sweeps toward the left.
-        revealDelays = (0..<5).map { Double(4 - $0) * 0.3 }
+        // Start the staggered flip animation. Delays run left-to-right, so the
+        // leftmost tile flips first and the reveal sweeps toward the right.
+        revealDelays = (0..<5).map { Double($0) * 0.3 }
         revealingRow = row
 
         // Staggered per-tile feedback, fired at each flip's midpoint.
