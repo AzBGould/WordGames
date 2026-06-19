@@ -18,9 +18,8 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSettings) {
+            // SettingsView sizes its own sheet to fit its content.
             SettingsView(game: game, isPresented: $showSettings)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
         }
         // Auto-show stats when a game ends (small delay so flip finishes)
         .onChange(of: game.gameState) { _, state in

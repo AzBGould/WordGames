@@ -4,6 +4,10 @@ struct SettingsView: View {
     @ObservedObject var game: LetterLogicGame
     @Binding var isPresented: Bool
 
+    // Sheet height is driven by the measured content height so the panel
+    // opens fully without a partial detent or trailing white space.
+    @State private var sheetHeight: CGFloat = 520
+
     private var dark: Bool { game.darkTheme }
 
     var body: some View {
@@ -77,15 +81,35 @@ struct SettingsView: View {
                 }
                 .padding(.top, 4)
 
-                Spacer()
-
                 // Version footer
                 Text("LetterLogic • Made with SwiftUI")
                     .font(.system(size: 12))
                     .foregroundStyle(AppTheme.secondaryText(dark: dark))
-                    .padding(.bottom, 30)
+                    .padding(.top, 28)
+                    .padding(.bottom, 24)
             }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(key: SettingsHeightKey.self,
+                                    value: proxy.size.height)
+                }
+            )
         }
+        .onPreferenceChange(SettingsHeightKey.self) { height in
+            if height > 0 { sheetHeight = height }
+        }
+        .presentationDetents([.height(sheetHeight)])
+        .presentationDragIndicator(.hidden)
+    }
+}
+
+// MARK: - Content Height Preference
+
+private struct SettingsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
