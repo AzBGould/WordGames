@@ -2,12 +2,11 @@
 import Foundation
 
 // MARK: - WordList
-// possibleAnswers  – 2 315 words from Josh Wardle's original Wordle answer list
-//                    (gist.github.com/cfreshman/a03ef2cba789d8cf00c08f767e0fad7b)
+// possibleAnswers  – 2 315 curated 5-letter answer words
 // additionalGuesses – common 5-letter words accepted as guesses but never answers
-//                    (includes the popular opener ADIEU and other Wordle-valid words)
+//                    (includes popular openers such as ADIEU)
 // allowedWords     – union of both, used for guess validation
-// answers / allWords – backward-compat aliases so WordleGame.swift needs no changes
+// answers / allWords – backward-compat aliases so LetterLogicGame.swift needs no changes
 
 enum WordList {
 
@@ -284,8 +283,8 @@ enum WordList {
     ]
 
     // MARK: - Extra valid guesses (accepted as input, never chosen as answers)
-    // Full official Wordle allowed-guess list (current NYT set). Combined with
-    // possibleAnswers this yields the complete valid-guess dictionary.
+    // Standard 5-letter allowed-guess list. Combined with possibleAnswers this
+    // yields the complete valid-guess dictionary.
     static let additionalGuesses: [String] = [
         "aahed","aalii","aargh","aarti","abaca","abaci","abacs","abaft","abaka","abamp",
         "aband","abash","abask","abaya","abbas","abbed","abbes","abcee","abeam","abear",
@@ -1283,7 +1282,7 @@ enum WordList {
     // MARK: - Combined word set used for guess validation
     static var allowedWords: [String] { possibleAnswers + additionalGuesses }
 
-    // MARK: - Backward-compatible aliases (WordleGame.swift uses these names)
+    // MARK: - Backward-compatible aliases (LetterLogicGame.swift uses these names)
     static var answers: [String] { possibleAnswers }
     static var allWords: [String] { allowedWords }
 }

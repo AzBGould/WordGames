@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var game = WordleGame()
+    @StateObject private var game = LetterLogicGame()
     @State private var showStats    = false
     @State private var showSettings = false
 

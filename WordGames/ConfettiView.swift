@@ -25,7 +25,7 @@ struct ConfettiView: View {
     @State private var timer: Timer? = nil
 
     private let colors: [Color] = [
-        .wordleGreen, .wordleYellow, Color(hex: "FF6B6B"),
+        Color(hex: "2FA98E"), Color(hex: "F4A259"), Color(hex: "FF6B6B"),
         Color(hex: "4ECDC4"), Color(hex: "FFE66D"),
         Color(hex: "A8DADC"), Color(hex: "F72585")
     ]

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct StatsView: View {
-    @ObservedObject var game: WordleGame
+    @ObservedObject var game: LetterLogicGame
     @Binding var isPresented: Bool
 
     private var dark: Bool { game.darkTheme }
@@ -56,6 +56,7 @@ struct StatsView: View {
                                 count:     game.statistics.guessDistribution["\(n)"] ?? 0,
                                 maxCount:  maxVal,
                                 highlight: game.gameState == .won && game.guessesUsed == n,
+                                accent:    game.palette.correct,
                                 dark:      dark
                             )
                         }
@@ -74,7 +75,7 @@ struct StatsView: View {
                                 .foregroundStyle(.black)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 14)
-                                .background(Color.wordleGreen)
+                                .background(game.palette.correct)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                     }
@@ -130,6 +131,7 @@ private struct DistributionBar: View {
     let count: Int
     let maxCount: Int
     let highlight: Bool
+    let accent: Color
     let dark: Bool
 
     var body: some View {
@@ -145,7 +147,7 @@ private struct DistributionBar: View {
                 HStack {
                     ZStack(alignment: .trailing) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(highlight ? Color.wordleGreen : AppTheme.grayFill(dark: dark))
+                            .fill(highlight ? accent : AppTheme.grayFill(dark: dark))
                             .frame(width: barWidth)
                         Text("\(count)")
                             .font(.system(size: 13, weight: .bold))

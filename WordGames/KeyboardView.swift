@@ -13,14 +13,14 @@ private let keyRows: [[String]] = [
 struct KeyButton: View {
     let label: String
     let letterState: LetterState
-    let highContrast: Bool
+    let palette: TilePalette
     let dark: Bool
     let action: () -> Void
 
     private var isWide: Bool { label == "ENTER" || label == "⌫" }
 
     private var background: Color {
-        letterState.keyColor(dark: dark, highContrast: highContrast)
+        letterState.keyColor(dark: dark, palette: palette)
     }
 
     private var foreground: Color {
@@ -62,7 +62,7 @@ struct KeyButton: View {
 // MARK: - Full Keyboard
 
 struct KeyboardView: View {
-    @ObservedObject var game: WordleGame
+    @ObservedObject var game: LetterLogicGame
 
     var body: some View {
         VStack(spacing: 8) {
@@ -72,7 +72,7 @@ struct KeyboardView: View {
                         KeyButton(
                             label:        key,
                             letterState:  state(for: key),
-                            highContrast: game.highContrast,
+                            palette:      game.palette,
                             dark:         game.darkTheme
                         ) {
                             handleKey(key)

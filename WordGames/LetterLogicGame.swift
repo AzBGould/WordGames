@@ -1,10 +1,10 @@
 import SwiftUI
 import Combine
 
-// MARK: - WordleGame
+// MARK: - LetterLogicGame
 
 @MainActor
-final class WordleGame: ObservableObject {
+final class LetterLogicGame: ObservableObject {
 
     // MARK: Board
     @Published var tiles: [[String]]      = blank5x6Strings()
@@ -36,8 +36,16 @@ final class WordleGame: ObservableObject {
 
     // MARK: Settings (persisted)
     @AppStorage("soundEnabled")    var soundEnabled: Bool = true
-    @AppStorage("highContrast")    var highContrast: Bool = false
     @AppStorage("hardMode")        var hardMode: Bool    = false
+
+    /// Selected tile color scheme. Stored as the palette's raw string.
+    @AppStorage("tilePalette")     var paletteRaw: String = TilePalette.cool.rawValue
+
+    /// Convenience accessor for the current palette.
+    var palette: TilePalette {
+        get { TilePalette(rawValue: paletteRaw) ?? .cool }
+        set { paletteRaw = newValue.rawValue }
+    }
 
     // Theme is @Published (not @AppStorage) so views re-render live when it
     // flips; persistence is handled manually in didSet / init.
@@ -55,6 +63,13 @@ final class WordleGame: ObservableObject {
         validWords = Set(WordList.allWords.map { $0.uppercased() })
         if let saved = UserDefaults.standard.object(forKey: "darkTheme") as? Bool {
             darkTheme = saved
+        }
+        // One-time migration: users who had the old high-contrast (color-blind)
+        // toggle on are moved to the new accessible palette.
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "tilePalette") == nil,
+           defaults.bool(forKey: "highContrast") {
+            defaults.set(TilePalette.accessible.rawValue, forKey: "tilePalette")
         }
         loadStatistics()
         loadUsedAnswers()
@@ -330,8 +345,8 @@ final class WordleGame: ObservableObject {
             text += "\n"
             for c in 0..<5 {
                 switch tileStates[r][c] {
-                case .correct: text += highContrast ? "🟧" : "🟩"
-                case .present: text += highContrast ? "🟦" : "🟨"
+                case .correct: text += palette.correctEmoji
+                case .present: text += palette.presentEmoji
                 default:       text += "⬛"
                 }
             }
@@ -357,13 +372,21 @@ final class WordleGame: ObservableObject {
 
     // MARK: - Persistence
 
-    private let statsKey        = "wordle_statistics"
+    private let statsKey        = "letterlogic_statistics"
+    private let legacyStatsKey  = "wordle_statistics"   // pre-rename key
     private let savedGameKey    = "ll_saved_game"
     private let usedAnswersKey  = "ll_used_answers"
     private let puzzleNumberKey = "ll_puzzle_number"
 
     private func loadStatistics() {
-        guard let data = UserDefaults.standard.data(forKey: statsKey),
+        let defaults = UserDefaults.standard
+        // One-time migration: move stats saved under the old key to the new one.
+        if defaults.data(forKey: statsKey) == nil,
+           let legacy = defaults.data(forKey: legacyStatsKey) {
+            defaults.set(legacy, forKey: statsKey)
+            defaults.removeObject(forKey: legacyStatsKey)
+        }
+        guard let data = defaults.data(forKey: statsKey),
               let s    = try? JSONDecoder().decode(Statistics.self, from: data)
         else { return }
         statistics = s

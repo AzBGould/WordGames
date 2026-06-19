@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Main Game View
 
 struct GameView: View {
-    @ObservedObject var game: WordleGame
+    @ObservedObject var game: LetterLogicGame
     @Binding var showStats: Bool
     @Binding var showSettings: Bool
 

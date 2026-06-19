@@ -62,7 +62,7 @@ struct SavedGameState: Codable {
     var letterStateRaw: [String: Int]  // [letter: LetterState.rawValue]
 }
 
-// MARK: - Win Messages (same as official Wordle)
+// MARK: - Win Messages
 
 enum WinMessage {
     static func message(forGuess guess: Int) -> String {

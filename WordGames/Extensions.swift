@@ -22,20 +22,98 @@ extension Color {
     }
 }
 
-// MARK: - Wordle Brand Colors
+// MARK: - App Accent + Neutral Chrome Colors
+// Original-design colors (no relation to any other word game's branding).
 
 extension Color {
-    static let wordleBackground = Color(hex: "121213")
-    static let wordleGreen      = Color(hex: "6AAA64")
-    static let wordleYellow     = Color(hex: "C9B458")
-    static let wordleGray       = Color(hex: "787C7E")
-    static let wordleDarkGray   = Color(hex: "3A3A3C")
-    static let wordleTileBorder = Color(hex: "3A3A3C")
-    static let wordleTileFilled = Color(hex: "565758")
-    static let wordleKeyBg      = Color(hex: "818384")
-    static let wordleHeaderLine = Color(hex: "3A3A3C")
-    static let wordleHighGreen  = Color(hex: "F5793A")  // high-contrast correct
-    static let wordleHighYellow = Color(hex: "85C0F9")  // high-contrast present
+    static let appBackground = Color(hex: "121213")
+    static let appAccent     = Color(hex: "2FA98E")  // brand teal (toggles, buttons)
+    static let neutralGray   = Color(hex: "787C7E")
+    static let neutralDark   = Color(hex: "3A3A3C")
+}
+
+// MARK: - Tile Palettes
+// User-selectable color schemes for the result tiles. Each palette supplies
+// the three feedback colors: `correct` (right letter, right spot),
+// `present` (right letter, wrong spot), and `absent` (not in the word).
+// All palettes are original choices, chosen to be visually distinct from one
+// another and from any existing word game.
+
+enum TilePalette: String, CaseIterable, Identifiable {
+    case cool
+    case warm
+    case vibrant
+    case accessible
+
+    var id: String { rawValue }
+
+    /// Title shown in the settings picker.
+    var displayName: String {
+        switch self {
+        case .cool:       return "Cool"
+        case .warm:       return "Warm"
+        case .vibrant:    return "Vibrant"
+        case .accessible: return "Color Blind"
+        }
+    }
+
+    /// One-line description shown under the title.
+    var subtitle: String {
+        switch self {
+        case .cool:       return "Teal & indigo — calm and modern"
+        case .warm:       return "Terracotta & amber — earthy tones"
+        case .vibrant:    return "Emerald & magenta — bold and bright"
+        case .accessible: return "Orange & blue — high contrast for color vision"
+        }
+    }
+
+    /// Right letter, right position.
+    var correct: Color {
+        switch self {
+        case .cool:       return Color(hex: "2FA98E")  // teal
+        case .warm:       return Color(hex: "C96A3F")  // terracotta
+        case .vibrant:    return Color(hex: "18BC6B")  // emerald
+        case .accessible: return Color(hex: "F5793A")  // orange
+        }
+    }
+
+    /// Right letter, wrong position.
+    var present: Color {
+        switch self {
+        case .cool:       return Color(hex: "6B7FD7")  // indigo / periwinkle
+        case .warm:       return Color(hex: "E0A23C")  // amber
+        case .vibrant:    return Color(hex: "E84D8A")  // magenta
+        case .accessible: return Color(hex: "85C0F9")  // light blue
+        }
+    }
+
+    /// Letter not in the word.
+    var absent: Color {
+        switch self {
+        case .cool:       return Color(hex: "6B7280")  // slate gray
+        case .warm:       return Color(hex: "8C8178")  // warm taupe
+        case .vibrant:    return Color(hex: "5B5F6B")  // cool dark gray
+        case .accessible: return Color(hex: "787C7E")  // neutral gray
+        }
+    }
+
+    /// Emoji squares used in the shareable result grid.
+    var correctEmoji: String {
+        switch self {
+        case .cool:       return "🟦"
+        case .warm:       return "🟧"
+        case .vibrant:    return "🟩"
+        case .accessible: return "🟧"
+        }
+    }
+    var presentEmoji: String {
+        switch self {
+        case .cool:       return "🟪"
+        case .warm:       return "🟨"
+        case .vibrant:    return "🟪"
+        case .accessible: return "🟦"
+        }
+    }
 }
 
 // MARK: - App Theme (light / dark palette)
@@ -84,22 +162,22 @@ enum AppTheme {
 // MARK: - TileState → Colors
 
 extension TileState {
-    func backgroundColor(highContrast: Bool) -> Color {
+    func backgroundColor(palette: TilePalette) -> Color {
         switch self {
         case .empty, .filled: return .clear
-        case .correct: return highContrast ? .wordleHighGreen  : .wordleGreen
-        case .present: return highContrast ? .wordleHighYellow : .wordleYellow
-        case .absent:  return .wordleGray
+        case .correct: return palette.correct
+        case .present: return palette.present
+        case .absent:  return palette.absent
         }
     }
 
-    func borderColor(dark: Bool, highContrast: Bool) -> Color {
+    func borderColor(dark: Bool, palette: TilePalette) -> Color {
         switch self {
         case .empty:  return AppTheme.emptyBorder(dark: dark)
         case .filled: return AppTheme.filledBorder(dark: dark)
-        case .correct: return highContrast ? .wordleHighGreen  : .wordleGreen
-        case .present: return highContrast ? .wordleHighYellow : .wordleYellow
-        case .absent:  return .wordleGray
+        case .correct: return palette.correct
+        case .present: return palette.present
+        case .absent:  return palette.absent
         }
     }
 
@@ -116,12 +194,12 @@ extension TileState {
 // MARK: - LetterState → Key Color
 
 extension LetterState {
-    func keyColor(dark: Bool, highContrast: Bool) -> Color {
+    func keyColor(dark: Bool, palette: TilePalette) -> Color {
         switch self {
         case .unused:  return AppTheme.keyDefaultBg(dark: dark)
-        case .absent:  return dark ? .wordleDarkGray : .wordleGray
-        case .present: return highContrast ? .wordleHighYellow : .wordleYellow
-        case .correct: return highContrast ? .wordleHighGreen  : .wordleGreen
+        case .absent:  return dark ? .neutralDark : .neutralGray
+        case .present: return palette.present
+        case .correct: return palette.correct
         }
     }
 

@@ -7,7 +7,7 @@ struct TileView: View {
     let state:  TileState
     let isRevealing: Bool   // true when this tile's row is mid-flip
     let revealDelay: Double // stagger delay within the row
-    let highContrast: Bool
+    let palette: TilePalette
     let dark: Bool
 
     @State private var displayState: TileState = .empty
@@ -19,10 +19,10 @@ struct TileView: View {
             let size = min(geo.size.width, geo.size.height)
             ZStack {
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(displayState.backgroundColor(highContrast: highContrast))
+                    .fill(displayState.backgroundColor(palette: palette))
 
                 RoundedRectangle(cornerRadius: 2)
-                    .strokeBorder(displayState.borderColor(dark: dark, highContrast: highContrast), lineWidth: 2)
+                    .strokeBorder(displayState.borderColor(dark: dark, palette: palette), lineWidth: 2)
 
                 if !letter.isEmpty {
                     Text(letter)
@@ -99,7 +99,7 @@ struct BoardRowView: View {
     let isShaking: Bool
     let isRevealing: Bool
     let revealDelays: [Double]
-    let highContrast: Bool
+    let palette: TilePalette
     let dark: Bool
 
     @State private var shakeValue: CGFloat = 0
@@ -112,7 +112,7 @@ struct BoardRowView: View {
                     state:       states[col],
                     isRevealing: isRevealing,
                     revealDelay: isRevealing ? revealDelays[col] : 0,
-                    highContrast: highContrast,
+                    palette:     palette,
                     dark:        dark
                 )
             }
@@ -133,7 +133,7 @@ struct BoardRowView: View {
 // MARK: - Full Board Grid
 
 struct BoardView: View {
-    @ObservedObject var game: WordleGame
+    @ObservedObject var game: LetterLogicGame
 
     var body: some View {
         VStack(spacing: 5) {
@@ -145,7 +145,7 @@ struct BoardView: View {
                     isShaking:    game.shakingRow == row,
                     isRevealing:  game.revealingRow == row,
                     revealDelays: game.revealDelays,
-                    highContrast: game.highContrast,
+                    palette:      game.palette,
                     dark:         game.darkTheme
                 )
             }

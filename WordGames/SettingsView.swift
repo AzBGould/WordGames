@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @ObservedObject var game: WordleGame
+    @ObservedObject var game: LetterLogicGame
     @Binding var isPresented: Bool
 
     private var dark: Bool { game.darkTheme }
@@ -55,13 +55,11 @@ struct SettingsView: View {
 
                     Divider().background(AppTheme.divider(dark: dark)).padding(.horizontal)
 
-                    SettingRow(
-                        title:    "Color Blind Mode",
-                        subtitle: "High contrast colors for improved color vision",
-                        dark:     dark,
-                        isOn:     Binding(
-                            get: { game.highContrast },
-                            set: { game.highContrast = $0 }
+                    PalettePickerRow(
+                        dark: dark,
+                        selection: Binding(
+                            get: { game.palette },
+                            set: { game.palette = $0 }
                         )
                     )
 
@@ -113,9 +111,87 @@ private struct SettingRow: View {
             Spacer()
             Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .tint(.wordleGreen)
+                .tint(.appAccent)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+    }
+}
+
+// MARK: - Palette Picker Row
+
+private struct PalettePickerRow: View {
+    let dark: Bool
+    @Binding var selection: TilePalette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Tile Colors")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(AppTheme.primaryText(dark: dark))
+                Text("Choose the color scheme for your tiles")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.secondaryText(dark: dark))
+            }
+
+            ForEach(TilePalette.allCases) { palette in
+                Button {
+                    selection = palette
+                } label: {
+                    HStack(spacing: 12) {
+                        // Color swatches
+                        HStack(spacing: 4) {
+                            swatch(palette.correct)
+                            swatch(palette.present)
+                            swatch(palette.absent)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(palette.displayName)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(AppTheme.primaryText(dark: dark))
+                            Text(palette.subtitle)
+                                .font(.system(size: 11))
+                                .foregroundStyle(AppTheme.secondaryText(dark: dark))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: selection == palette
+                              ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(selection == palette
+                                             ? Color.appAccent
+                                             : AppTheme.secondaryText(dark: dark))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selection == palette
+                                  ? Color.appAccent.opacity(0.12)
+                                  : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(selection == palette
+                                          ? Color.appAccent
+                                          : AppTheme.divider(dark: dark),
+                                          lineWidth: selection == palette ? 1.5 : 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private func swatch(_ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(color)
+            .frame(width: 18, height: 18)
     }
 }
