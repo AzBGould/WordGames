@@ -31,12 +31,13 @@ struct StatsView: View {
                 Divider().background(AppTheme.divider(dark: dark))
 
                 // Summary numbers
-                HStack(spacing: 20) {
-                    StatNumber(value: game.statistics.gamesPlayed,  label: "Played",        dark: dark)
-                    StatNumber(value: game.statistics.winPercentage, label: "Win %",         dark: dark)
-                    StatNumber(value: game.statistics.currentStreak, label: "Current\nStreak", dark: dark)
-                    StatNumber(value: game.statistics.maxStreak,     label: "Max\nStreak",    dark: dark)
+                HStack(alignment: .top, spacing: 8) {
+                    StatNumber(value: game.statistics.gamesPlayed,   label: "Played",         dark: dark)
+                    StatNumber(value: game.statistics.winPercentage, label: "Win %",          dark: dark)
+                    StatNumber(value: game.statistics.currentStreak, label: "Current Streak", dark: dark)
+                    StatNumber(value: game.statistics.maxStreak,     label: "Max Streak",     dark: dark)
                 }
+                .padding(.horizontal, 12)
                 .padding(.vertical, 20)
 
                 Divider().background(AppTheme.divider(dark: dark))
@@ -115,12 +116,17 @@ private struct StatNumber: View {
     var body: some View {
         VStack(spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 36, weight: .bold))
+                .font(.system(size: 34, weight: .bold))
                 .foregroundStyle(AppTheme.primaryText(dark: dark))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(AppTheme.primaryText(dark: dark))
                 .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
     }

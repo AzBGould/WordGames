@@ -6,7 +6,7 @@ struct SettingsView: View {
 
     // Sheet height is driven by the measured content height so the panel
     // opens fully without a partial detent or trailing white space.
-    @State private var sheetHeight: CGFloat = 520
+    @State private var sheetHeight: CGFloat = 660
 
     private var dark: Bool { game.darkTheme }
 
@@ -81,11 +81,11 @@ struct SettingsView: View {
                 }
                 .padding(.top, 4)
 
-                // Version footer
-                Text("LetterLogic • Made with SwiftUI")
-                    .font(.system(size: 12))
+                // App footer
+                Text("LetterLogic")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AppTheme.secondaryText(dark: dark))
-                    .padding(.top, 28)
+                    .padding(.top, 24)
                     .padding(.bottom, 24)
             }
             .background(
@@ -208,9 +208,44 @@ private struct PalettePickerRow: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            // What the colors mean — uses the currently selected palette so it
+            // always matches the tiles the player will see.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("What the colors mean")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryText(dark: dark))
+                    .padding(.top, 4)
+
+                legendRow(color: selection.correct, sample: "A",
+                          text: "Correct letter, correct spot")
+                legendRow(color: selection.present, sample: "B",
+                          text: "Correct letter, wrong spot")
+                legendRow(color: selection.absent, sample: "C",
+                          text: "Letter not in the word")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+    }
+
+    /// A single legend entry: a sample tile in the palette color plus a
+    /// plain-language description of what that color signals.
+    private func legendRow(color: Color, sample: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(color)
+                .frame(width: 28, height: 28)
+                .overlay(
+                    Text(sample)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                )
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.primaryText(dark: dark))
+            Spacer()
+        }
     }
 
     private func swatch(_ color: Color) -> some View {
