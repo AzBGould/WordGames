@@ -5,9 +5,9 @@ import Foundation
 enum TileState: String, Codable, Equatable {
     case empty    // no letter entered
     case filled   // letter entered, not yet submitted
-    case correct  // green: right letter, right position
-    case present  // yellow: right letter, wrong position
-    case absent   // gray: letter not in word
+    case correct  // right letter, right position   (palette "correct" color)
+    case present  // right letter, wrong position   (palette "present" color)
+    case absent   // letter not in the word         (palette "absent" color)
 }
 
 // MARK: - Game State

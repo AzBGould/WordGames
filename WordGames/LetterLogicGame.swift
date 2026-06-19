@@ -7,8 +7,8 @@ import Combine
 final class LetterLogicGame: ObservableObject {
 
     // MARK: Board
-    @Published var tiles: [[String]]      = blank5x6Strings()
-    @Published var tileStates: [[TileState]] = blank5x6States()
+    @Published var tiles: [[String]]      = blankBoardStrings()
+    @Published var tileStates: [[TileState]] = blankBoardStates()
     @Published var letterStates: [Character: LetterState] = [:]
 
     // MARK: Progress
@@ -18,7 +18,6 @@ final class LetterLogicGame: ObservableObject {
 
     // MARK: Animations
     @Published var shakingRow: Int?      = nil
-    @Published var bouncingTile: (row: Int, col: Int)? = nil
     @Published var revealingRow: Int?    = nil   // row currently mid-flip
     @Published var revealDelays: [Double] = Array(repeating: 0, count: 5)
     @Published var showConfetti: Bool    = false
@@ -104,8 +103,8 @@ final class LetterLogicGame: ObservableObject {
     }
 
     private func resetBoard() {
-        tiles       = Self.blank5x6Strings()
-        tileStates  = Self.blank5x6States()
+        tiles       = Self.blankBoardStrings()
+        tileStates  = Self.blankBoardStates()
         letterStates = [:]
         currentRow  = 0
         currentCol  = 0
@@ -122,20 +121,14 @@ final class LetterLogicGame: ObservableObject {
               currentCol < 5,
               revealingRow == nil else { return }
 
-        let upper = letter.uppercased()
-        tiles[currentRow][currentCol]       = upper
-        tileStates[currentRow][currentCol]  = .filled
-        let col = currentCol
+        tiles[currentRow][currentCol]      = letter.uppercased()
+        tileStates[currentRow][currentCol] = .filled
         currentCol += 1
 
         if soundEnabled { SoundManager.shared.keyTap() }
-
-        // Pop bounce animation
-        bouncingTile = (currentRow, col)
-        Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            bouncingTile = nil
-        }
+        // The per-tile "pop" animation is driven by TileView's
+        // onChange(of: letter), so no extra published state or timer is
+        // needed here — this keeps each keystroke to a single view update.
     }
 
     func deleteLetter() {
@@ -415,10 +408,24 @@ final class LetterLogicGame: ObservableObject {
     }
 
     /// Restores the last saved game (in-progress or finished), if any.
+    /// Returns false (so the caller starts a fresh game) when no valid save
+    /// exists or when the stored data is malformed.
     private func attemptRestoreGame() -> Bool {
         guard
             let data  = UserDefaults.standard.data(forKey: savedGameKey),
             let state = try? JSONDecoder().decode(SavedGameState.self, from: data)
+        else { return false }
+
+        // Defensive validation: the board views index a fixed rowCount × columnCount
+        // grid, so a save with the wrong shape (corrupted data or an older format)
+        // would crash on access. Reject it and fall back to a new game.
+        let rows = Self.rowCount, cols = Self.columnCount
+        guard state.tiles.count == rows,
+              state.tileStates.count == rows,
+              state.tiles.allSatisfy({ $0.count == cols }),
+              state.tileStates.allSatisfy({ $0.count == cols }),
+              (0..<rows).contains(state.currentRow),
+              (0...cols).contains(state.currentCol)
         else { return false }
 
         secretWord   = state.secretWord
@@ -446,13 +453,20 @@ final class LetterLogicGame: ObservableObject {
         }
     }
 
+    // MARK: - Board Geometry
+
+    /// Letters per word / tiles per row.
+    static let columnCount = 5
+    /// Number of guesses allowed / rows on the board.
+    static let rowCount    = 6
+
     // MARK: - Helpers
 
-    private static func blank5x6Strings() -> [[String]] {
-        Array(repeating: Array(repeating: "", count: 5), count: 6)
+    private static func blankBoardStrings() -> [[String]] {
+        Array(repeating: Array(repeating: "", count: columnCount), count: rowCount)
     }
-    private static func blank5x6States() -> [[TileState]] {
-        Array(repeating: Array(repeating: .empty, count: 5), count: 6)
+    private static func blankBoardStates() -> [[TileState]] {
+        Array(repeating: Array(repeating: .empty, count: columnCount), count: rowCount)
     }
 }
 

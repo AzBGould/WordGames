@@ -116,9 +116,10 @@ enum TilePalette: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - App Theme (light / dark palette)
-// Tile fill colors (green/yellow/gray) are the same in both themes; what
-// changes is the chrome: background, text, borders, dividers, key colors.
+// MARK: - App Theme (light / dark appearance)
+// The tile feedback colors come from the user-selected `TilePalette` and are
+// identical in both appearances; what changes here is the chrome: background,
+// text, borders, dividers, and key colors.
 
 enum AppTheme {
     static func background(dark: Bool) -> Color {
@@ -182,7 +183,8 @@ extension TileState {
     }
 
     /// Letter color: dark/near-black on blank or filled tiles, white once a
-    /// tile is colored in (green/yellow/gray look the same in both themes).
+    /// tile is colored in by any palette (the fill colors read the same in
+    /// both light and dark appearance).
     func textColor(dark: Bool) -> Color {
         switch self {
         case .empty, .filled: return AppTheme.primaryText(dark: dark)

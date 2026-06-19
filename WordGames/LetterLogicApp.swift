@@ -1,7 +1,9 @@
 import SwiftUI
 
+// MARK: - App Entry Point
+
 @main
-struct MyApp: App {
+struct LetterLogicApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
