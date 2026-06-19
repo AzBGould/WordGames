@@ -174,8 +174,9 @@ final class LetterLogicGame: ObservableObject {
             tileStates[row][col] = result[col]
         }
 
-        // Start the staggered flip animation
-        revealDelays = (0..<5).map { Double($0) * 0.3 }
+        // Start the staggered flip animation. Delays run right-to-left, so the
+        // rightmost tile flips first and the reveal sweeps toward the left.
+        revealDelays = (0..<5).map { Double(4 - $0) * 0.3 }
         revealingRow = row
 
         // Staggered per-tile feedback, fired at each flip's midpoint.
@@ -189,8 +190,8 @@ final class LetterLogicGame: ObservableObject {
             }
         }
 
-        // After all flips complete
-        let doneDelay = revealDelays[4] + 0.3
+        // After all flips complete (use the longest stagger, now the leftmost tile)
+        let doneDelay = (revealDelays.max() ?? 0) + 0.3
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(doneDelay * 1_000_000_000))
             self.revealingRow = nil

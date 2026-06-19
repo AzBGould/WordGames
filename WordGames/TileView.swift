@@ -11,8 +11,8 @@ struct TileView: View {
     let dark: Bool
 
     @State private var displayState: TileState = .empty
-    @State private var scaleY: CGFloat = 1.0
-    @State private var popScale: CGFloat = 1.0
+    @State private var flipScale: CGFloat = 1.0   // horizontal flip: 1 → 0 → 1 (x-axis)
+    @State private var popScale: CGFloat = 1.0     // letter-entry bounce (y-axis)
 
     var body: some View {
         GeometryReader { geo in
@@ -32,7 +32,8 @@ struct TileView: View {
                         .accessibilityLabel(letter)
                 }
             }
-            .scaleEffect(x: 1.0, y: scaleY * popScale)
+            // Flip folds horizontally (x-axis); the entry pop bounces vertically (y-axis).
+            .scaleEffect(x: flipScale, y: popScale)
         }
         .aspectRatio(1, contentMode: .fit)
         // Animate flip when row is being revealed
@@ -63,16 +64,16 @@ struct TileView: View {
         // setting revealingRow, so this value is guaranteed to be correct.
         let targetState = state
 
-        // Scale Y to 0 (fold)
+        // Scale X to 0 (fold along the vertical axis → horizontal flip)
         withAnimation(.easeIn(duration: 0.15).delay(revealDelay)) {
-            scaleY = 0
+            flipScale = 0
         }
         // At the midpoint swap to the evaluated color, then unfold
         Task {
             try? await Task.sleep(nanoseconds: UInt64((revealDelay + 0.15) * 1_000_000_000))
             displayState = targetState
             withAnimation(.easeOut(duration: 0.15)) {
-                scaleY = 1.0
+                flipScale = 1.0
             }
         }
     }
