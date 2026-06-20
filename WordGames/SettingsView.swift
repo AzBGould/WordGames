@@ -14,7 +14,10 @@ struct SettingsView: View {
         ZStack {
             AppTheme.background(dark: dark).ignoresSafeArea()
 
-            VStack(spacing: 0) {
+            // Scrolls when the content is taller than the sheet (e.g. small
+            // devices like iPhone SE); on larger phones it simply fits.
+            ScrollView {
+              VStack(spacing: 0) {
                 // Header
                 HStack {
                     Spacer()
@@ -88,19 +91,22 @@ struct SettingsView: View {
                     .padding(.top, 24)
                     .padding(.bottom, 24)
             }
-            .background(
+              .background(
                 GeometryReader { proxy in
                     Color.clear
                         .preference(key: SettingsHeightKey.self,
                                     value: proxy.size.height)
                 }
-            )
+              )
+            }
         }
         .onPreferenceChange(SettingsHeightKey.self) { height in
             if height > 0 { sheetHeight = height }
         }
+        // On tall phones this fits the content exactly; on short phones (iPhone SE)
+        // the system clamps the detent to the screen and the ScrollView scrolls.
         .presentationDetents([.height(sheetHeight)])
-        .presentationDragIndicator(.hidden)
+        .presentationDragIndicator(.visible)
     }
 }
 
