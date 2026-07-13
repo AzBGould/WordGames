@@ -348,6 +348,53 @@ final class LetterLogicGame: ObservableObject {
         return text
     }
 
+    // MARK: - Streak Milestones
+
+    /// A win-streak celebration fires every this many consecutive wins.
+    static let streakMilestoneInterval = 25
+
+    /// Highest milestone already celebrated in the CURRENT streak run. Reset to 0
+    /// when a loss breaks the streak, so climbing back to 25 celebrates anew.
+    @AppStorage("ll_last_celebrated_milestone") private var lastCelebratedMilestone: Int = 0
+
+    /// A milestone (25, 50, 75, …) that the current winning streak has reached
+    /// but not yet celebrated; otherwise nil. Only fires once per milestone —
+    /// once celebrated it stays suppressed until the streak advances to the next
+    /// multiple (or breaks and climbs back up).
+    var pendingStreakMilestone: Int? {
+        guard gameState == .won,
+              statistics.currentStreak > 0,
+              statistics.currentStreak % Self.streakMilestoneInterval == 0,
+              statistics.currentStreak > lastCelebratedMilestone
+        else { return nil }
+        return statistics.currentStreak
+    }
+
+    /// Record that the given milestone has been celebrated so it won't fire again.
+    func markStreakMilestoneCelebrated(_ milestone: Int) {
+        lastCelebratedMilestone = milestone
+    }
+
+    /// Break the current win streak without recording a played game or a loss.
+    /// Used when the player abandons an in-progress game via New Game — a
+    /// surrender resets the streak but leaves Games Played and Win % untouched.
+    func breakStreak() {
+        statistics.currentStreak = 0
+        lastCelebratedMilestone  = 0
+        saveStatistics()
+    }
+
+    /// Share text for a streak milestone — distinct from the per-game grid share.
+    /// Takes the streak count explicitly so it always matches the number shown on
+    /// the celebration banner (no separate live read that could drift).
+    func streakShareText(streak: Int) -> String {
+        """
+        🔥 I'm on a \(streak)-game win streak in LetterLogic! 🔥
+
+        Think you can beat it? [Get LetterLogic: <APP STORE LINK — replace before release>]
+        """
+    }
+
     // MARK: - Statistics
 
     private func recordResult(won: Bool, guessCount: Int) {
@@ -360,6 +407,7 @@ final class LetterLogicGame: ObservableObject {
             statistics.guessDistribution[key, default: 0] += 1
         } else {
             statistics.currentStreak = 0
+            lastCelebratedMilestone  = 0   // streak broken → next 25 celebrates again
         }
         saveStatistics()
     }

@@ -4,7 +4,27 @@ struct StatsView: View {
     @ObservedObject var game: LetterLogicGame
     @Binding var isPresented: Bool
 
+    /// Drives the milestone confetti burst inside this sheet.
+    @State private var streakConfetti = false
+
+    /// Milestone captured once when the sheet appears, so it stays visible for
+    /// this presentation even after we mark it celebrated.
+    @State private var milestoneToCelebrate: Int? = nil
+
+    /// Drives the "give up this game?" confirmation on New Game.
+    @State private var showNewGameConfirm = false
+
     private var dark: Bool { game.darkTheme }
+
+    /// True when tapping New Game would abandon an active game and cost a streak.
+    private var wouldAbandonStreak: Bool {
+        game.gameState == .playing && game.statistics.currentStreak > 0
+    }
+
+    private func startNewGame() {
+        isPresented = false
+        game.newGame()
+    }
 
     var body: some View {
         ZStack {
@@ -29,6 +49,18 @@ struct StatsView: View {
                 .padding(.bottom, 16)
 
                 Divider().background(AppTheme.divider(dark: dark))
+
+                // Streak milestone celebration (every 25 consecutive wins)
+                if let milestone = milestoneToCelebrate {
+                    StreakMilestoneBanner(
+                        milestone: milestone,
+                        shareText: game.streakShareText(streak: milestone),
+                        accent:    game.palette.correct,
+                        dark:      dark
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                }
 
                 // Summary numbers
                 HStack(alignment: .top, spacing: 8) {
@@ -69,7 +101,9 @@ struct StatsView: View {
 
                 // Buttons row
                 HStack(spacing: 12) {
-                    if game.gameState != .playing {
+                    // Hidden while the streak banner is up so there's only one
+                    // Share action on screen (the banner's SHARE STREAK).
+                    if game.gameState != .playing && milestoneToCelebrate == nil {
                         ShareLink(item: game.shareText()) {
                             Label("SHARE", systemImage: "square.and.arrow.up")
                                 .font(.system(size: 16, weight: .bold))
@@ -82,8 +116,11 @@ struct StatsView: View {
                     }
 
                     Button {
-                        isPresented = false
-                        game.newGame()
+                        if wouldAbandonStreak {
+                            showNewGameConfirm = true
+                        } else {
+                            startNewGame()
+                        }
                     } label: {
                         Text("NEW GAME")
                             .font(.system(size: 16, weight: .bold))
@@ -93,9 +130,36 @@ struct StatsView: View {
                             .background(AppTheme.grayFill(dark: dark))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
+                    .confirmationDialog(
+                        "Give up this game?",
+                        isPresented: $showNewGameConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("End Game & Reset Streak", role: .destructive) {
+                            game.breakStreak()
+                            startNewGame()
+                        }
+                        Button("Keep Playing", role: .cancel) { }
+                    } message: {
+                        Text("You're on a \(game.statistics.currentStreak)-game win streak. Starting a new game gives up the current one and resets your streak to 0.")
+                    }
                 }
                 .padding(.top, 16)
                 .padding(.bottom, 24)
+            }
+        }
+        // Milestone confetti bursts over the sheet when the banner is shown.
+        .overlay {
+            if milestoneToCelebrate != nil {
+                ConfettiView(isActive: $streakConfetti)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onAppear {
+            if let m = game.pendingStreakMilestone {
+                milestoneToCelebrate = m
+                streakConfetti = true
+                game.markStreakMilestoneCelebrated(m)
             }
         }
     }
@@ -107,6 +171,45 @@ struct StatsView: View {
 }
 
 // MARK: - Sub-views
+
+private struct StreakMilestoneBanner: View {
+    let milestone: Int
+    let shareText: String
+    let accent: Color
+    let dark: Bool
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("🔥 \(milestone)-GAME STREAK! 🔥")
+                .font(.system(size: 18, weight: .heavy))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            Text("You've won \(milestone) in a row. Share the milestone!")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.95))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ShareLink(item: shareText) {
+                Label("SHARE STREAK", systemImage: "flame.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
+        .background(accent)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
 
 private struct StatNumber: View {
     let value: Int
